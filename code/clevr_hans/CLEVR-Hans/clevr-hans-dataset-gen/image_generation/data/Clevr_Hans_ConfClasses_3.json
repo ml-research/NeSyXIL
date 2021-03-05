@@ -1,0 +1,44 @@
+{
+  "0": [
+    {
+    "shape": "cube",
+    "size": "large",
+    "material": "",
+    "color": "gray"
+    },
+    {
+    "shape": "cylinder",
+    "size": "large",
+    "material": "",
+    "color": ""
+    }
+  ],
+  "1": [
+        {
+    "shape": "cube",
+    "size": "small",
+    "material": "metal",
+    "color": ""
+    },
+    {
+    "shape": "sphere",
+    "size": "small",
+    "material": "metal",
+    "color": ""
+    }
+  ],
+  "2": [
+        {
+    "shape": "sphere",
+    "size": "large",
+    "material": "",
+    "color": "blue"
+    },
+    {
+    "shape": "sphere",
+    "size": "small",
+    "material": "",
+    "color": "yellow"
+    }
+  ]
+}

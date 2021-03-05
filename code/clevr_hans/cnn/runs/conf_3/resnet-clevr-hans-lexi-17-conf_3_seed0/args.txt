@@ -1,0 +1,22 @@
+
+name: resnet-clevr-hans-lexi-17-conf_3
+seed: 0
+resume: None
+mode: train
+data_dir: /workspace/datasets/Clevr_Hans/conf_3/
+fp_ckpt: None
+epochs: 100
+lr: 0.0001
+l2_grads: 10.0
+batch_size: 64
+num_workers: 4
+dataset: clevr-hans-state
+no_cuda: False
+train_only: False
+eval_only: False
+conf_version: conf_3
+device: cuda
+n_imgclasses: 3
+class_weights: tensor([0.3333, 0.3333, 0.3333])
+classes: [0 1 2]
+category_ids: [ 3  6  8 10 18]

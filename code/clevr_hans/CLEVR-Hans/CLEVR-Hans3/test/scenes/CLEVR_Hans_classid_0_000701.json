@@ -1,0 +1,175 @@
+{
+  "class_id": 0,
+  "image_filename": "CLEVR_Hans_classid_0_000701.png",
+  "directions": {
+    "right": [
+      0.6563112735748291,
+      0.7544902563095093,
+      -0.0
+    ],
+    "above": [
+      0.0,
+      0.0,
+      1.0
+    ],
+    "behind": [
+      -0.754490315914154,
+      0.6563112735748291,
+      0.0
+    ],
+    "below": [
+      -0.0,
+      -0.0,
+      -1.0
+    ],
+    "front": [
+      0.754490315914154,
+      -0.6563112735748291,
+      -0.0
+    ],
+    "left": [
+      -0.6563112735748291,
+      -0.7544902563095093,
+      0.0
+    ]
+  },
+  "relationships": {
+    "right": [
+      [
+        2
+      ],
+      [
+        0,
+        2
+      ],
+      []
+    ],
+    "front": [
+      [],
+      [
+        0,
+        2
+      ],
+      [
+        0
+      ]
+    ],
+    "left": [
+      [
+        1
+      ],
+      [],
+      [
+        0,
+        1
+      ]
+    ],
+    "behind": [
+      [
+        1,
+        2
+      ],
+      [],
+      [
+        1
+      ]
+    ]
+  },
+  "objects": [
+    {
+      "rotation": 190.33232005293846,
+      "pixel_coords": [
+        170,
+        219,
+        8.303319931030273
+      ],
+      "idx": 1,
+      "mask": {
+        "size": [
+          320,
+          480
+        ],
+        "counts": "SfP12k9:G9H7J7H7I8H7J7H7I4M2M2N101N1O2O0O2N101N1O2O0O1O2O0O2N101N1O2O0O1O2O0O2N101N1O2O0O1O2O0O2N1O2O0O2N101N100O2O001O001O010O00010O0010O01O0010O00010O00001O00001N100O2N1O1O1O2N1O1O2N1O1O2N1O1N3N1O1O1O2N1O1O2N1O1O2N1O1O2N1O1O2N1O1O1O2N1O1O2N1N3N2N3M>ASb^2"
+      },
+      "3d_coords": [
+        1.4440877437591553,
+        -2.9554953575134277,
+        0.699999988079071
+      ],
+      "color": "brown",
+      "shape": "cube",
+      "material": "metal",
+      "bbox": [
+        104,
+        155,
+        124,
+        134
+      ],
+      "size": "large"
+    },
+    {
+      "rotation": 70.02145399759073,
+      "pixel_coords": [
+        153,
+        151,
+        10.233871459960938
+      ],
+      "idx": 2,
+      "mask": {
+        "size": [
+          320,
+          480
+        ],
+        "counts": "hSS19e99H9G8H9G8H8I8G0010O0010O01O10O01O10O01O100O00100O1O010O1O100O1O100O00100O1O1O100O1O100O100O100000001O01O00001O01O01O0001O01O01O010O0010O01O100O1O2O:Eb0^O_ij2"
+      },
+      "3d_coords": [
+        -0.5625461935997009,
+        -1.827937364578247,
+        0.699999988079071
+      ],
+      "color": "cyan",
+      "shape": "cylinder",
+      "material": "rubber",
+      "bbox": [
+        112,
+        104,
+        78,
+        96
+      ],
+      "size": "large"
+    },
+    {
+      "rotation": 283.29906390077724,
+      "pixel_coords": [
+        243,
+        179,
+        9.3328857421875
+      ],
+      "idx": 3,
+      "mask": {
+        "size": [
+          320,
+          480
+        ],
+        "counts": "VWP22k94M2N2O2M2O1O2N1O1O2N1O1O1O2O0O1O2O0O2O1N3N=Bj0WO1O0O10001O0O1000001O0000000000000000O10001O00000O2O000O2O0O2O0O2O0O2O0O2N2O1N2N1O2N2N3M2N2N3L3M4M3L4K6J8Ggfm1"
+      },
+      "3d_coords": [
+        1.4004873037338257,
+        -1.3002039194107056,
+        0.699999988079071
+      ],
+      "color": "yellow",
+      "shape": "sphere",
+      "material": "metal",
+      "bbox": [
+        203,
+        140,
+        79,
+        79
+      ],
+      "size": "large"
+    }
+  ],
+  "split": "classid_0",
+  "image_index": 701
+}
