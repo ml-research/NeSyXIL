@@ -1,8 +1,8 @@
 # NeSyXIL (Neuro-Symbolic Explanatory Interactive Learning)
 
-This is the official repository of the article: "Right for the Right Concept: Revising Neuro-Symbolic Concepts by 
-Interacting with their Explanations" by Wolfgang Stammer, Patrick Schramowski, Kristian Kersting, to be published at 
-CVPR 2021 [paper](https://arxiv.org/pdf/2011.12854.pdf)
+This is the official repository of the article: [Right for the Right Concept: Revising Neuro-Symbolic Concepts by 
+Interacting with their Explanations](https://arxiv.org/pdf/2011.12854.pdf) by Wolfgang Stammer, Patrick Schramowski, Kristian Kersting, to be published at 
+CVPR 2021.
 
 ![Concept Learner with NeSy XIL](./figures/main_method.png)
 
