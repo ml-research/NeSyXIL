@@ -10,7 +10,7 @@ Kristian Kersting, to be published at CVPR 2021.
 
 ### Dataset
 
-Please visit [the CLEVR-Hans repository](https://github.com/ml-research/CLEVR-Hans) for instrucitons on how to download 
+Please visit the [CLEVR-Hans](https://github.com/ml-research/CLEVR-Hans) repository for instrucitons on how to download 
 the CLEVR-Hans dataset.
 
 TODO: 
