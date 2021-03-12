@@ -4,17 +4,17 @@ This is the official repository of the article: [Right for the Right Concept: Re
 Interacting with their Explanations](https://arxiv.org/pdf/2011.12854.pdf) by Wolfgang Stammer, Patrick Schramowski, 
 Kristian Kersting, to be published at CVPR 2021.
 
+This repository contains all source code required to reproduce the experiments of the paper including the ColorMNIST 
+experiments and running the CNN model. 
+
 In case you are only looking for the NeSy Concept Learner please visit the 
 separate [repository](https://github.com/ml-research/NeSyConceptLearner).
 
 ![Concept Learner with NeSy XIL](./figures/main_method.png)
 
-This repository contains all source code required to reproduce the experiments of the paper including the ColorMNIST 
-experiments and running the CNN model. 
-
 Included is a docker file as well as a modified version of captum ([official repo](https://captum.ai/)) that we had 
 modified by a single line such that the gradients of the explanations are kept. Simply running the docker file will 
-automatically load the captum_xil version. (line 105 in ```NeSyXIL/src/docker/captum_xil/captum/attr/_utils/gradient.py```) 
+automatically install the captum_xil version. (ref. line 105 in ```NeSyXIL/src/docker/captum_xil/captum/attr/_utils/gradient.py```) 
 
 ## How to Run (in quick repititions move one leg in front of the other):
 
