@@ -98,6 +98,7 @@ def compute_gradients(
             "Target not provided when necessary, cannot"
             " take gradient with respect to multiple outputs."
         )
+        # This line updated by Wolfgang Stammer to retrieve the gradients of the explanations
         # torch.unbind(forward_out) is a list of scalar tensor tuples and
         # contains batch_size * #steps elements
         #grads = torch.autograd.grad(torch.unbind(outputs), inputs)

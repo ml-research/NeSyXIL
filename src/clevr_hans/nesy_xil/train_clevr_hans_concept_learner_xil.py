@@ -1,36 +1,28 @@
-import os
-import random
-import argparse
-from datetime import datetime
-
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-
-import torchvision.transforms as transforms
-import torchvision.datasets as datasets
-import torch.multiprocessing as mp
-
-import scipy.optimize
-from sklearn import metrics
-import numpy as np
-from tqdm import tqdm
-import glob
-
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import os
+import random
+import argparse
+import glob
+import scipy.optimize
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import torchvision.transforms as transforms
+import torchvision.datasets as datasets
+import torch.multiprocessing as mp
+import numpy as np
 from tensorboardX import SummaryWriter
+from datetime import datetime
+from sklearn import metrics
+from tqdm import tqdm
 
-from captum.attr import InputXGradient, IntegratedGradients, DeepLift, NoiseTunnel
-from captum.attr._core.layer.grad_cam import LayerGradCam
-
-import data_xil as data
-import model
-import utils as utils
+import NeSyConceptLearner.src.model as model
+import NeSyConceptLearner.src.utils as utils
+import data_clevr_hans as data
+from xil_losses import LexiLoss
 from rtpt import RTPT
-
-torch.autograd.set_detect_anomaly(True)
 
 os.environ["MKL_NUM_THREADS"] = "6"
 os.environ["NUMEXPR_NUM_THREADS"] = "6"
@@ -115,116 +107,9 @@ def get_args():
     else:
         args.device = 'cuda'
 
-    seed_everything(args.seed)
+    utils.seed_everything(args.seed)
 
     return args
-
-
-def seed_everything(seed=42):
-    random.seed(seed)
-    os.environ['PYTHONHASHSEED'] = str(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
-
-
-def write_expls_attn(net, data_loader, tagname, args, epoch, writer):
-
-    def norm_saliencies(saliencies):
-        saliencies_norm = saliencies.clone()
-
-        for i in range(saliencies.shape[0]):
-            if len(torch.nonzero(saliencies[i], as_tuple=False)) == 0:
-                saliencies_norm[i] = saliencies[i]
-            else:
-                saliencies_norm[i] = (saliencies[i] - torch.min(saliencies[i])) / \
-                                     (torch.max(saliencies[i]) - torch.min(saliencies[i]))
-
-        return saliencies_norm
-
-    def generate_intgrad_captum_table(net, input, labels):
-        labels = labels.to("cuda")
-        explainer = IntegratedGradients(net)
-        saliencies = explainer.attribute(input, target=labels)
-        # remove negative attributions
-        saliencies[saliencies < 0] = 0.
-        # normalize each saliency map by its max
-        for k, sal in enumerate(saliencies):
-            saliencies[k] = sal/torch.max(sal)
-        return norm_saliencies(saliencies)
-
-    attr_labels = ['Sphere', 'Cube', 'Cylinder',
-                   'Large', 'Small',
-                   'Rubber', 'Metal',
-                   'Cyan', 'Blue', 'Yellow', 'Purple', 'Red', 'Green', 'Gray', 'Brown']
-
-    net.eval()
-
-    for i, sample in enumerate(data_loader):
-        # input is either a set or an image
-        imgs, target_set, img_class_ids, img_ids, _, _ = map(lambda x: x.cuda(), sample)
-        img_class_ids = img_class_ids.long()
-
-        # forward evaluation through the network
-        output_cls, output_attr = net(imgs)
-        _, preds = torch.max(output_cls, 1)
-
-        # convert sorting gt target set and gt table explanations to match the order of the predicted table
-        target_set, match_ids = utils.hungarian_matching(output_attr.to('cuda'), target_set)
-        # table_expls = table_expls[:, match_ids][range(table_expls.shape[0]), range(table_expls.shape[0])]
-
-        # get explanations of set classifier
-        table_saliencies = generate_intgrad_captum_table(net.set_cls, output_attr, preds)
-
-        # get the ids of the two objects that receive the maximal importance, i.e. most important for the classification
-        max_expl_obj_ids = table_saliencies.max(dim=2)[0].topk(2)[1]
-
-        # get attention masks
-        attns = net.img2state_net.slot_attention.attn
-        # reshape attention masks to 2D
-        attns = attns.reshape((attns.shape[0], attns.shape[1], int(np.sqrt(attns.shape[2])),
-                               int(np.sqrt(attns.shape[2]))))
-
-        # concatenate the visual explanation of the top two objects that are most important for the classification
-        img_saliencies = torch.zeros(attns.shape[0], attns.shape[2], attns.shape[3])
-        # for obj_id in range(max_expl_obj_ids.shape[1]):
-        #     # convert the ids of the max expl ids to the corresponding slot ids, that were computed by
-        #     # utils.hungarian_matching
-        #     convert_ids = match_ids[range(attns.shape[0]), max_expl_obj_ids[:, obj_id].cpu().numpy()]
-        #     img_saliencies += attns[range(attns.shape[0]), convert_ids, :, :].detach().cpu()
-        for obj_id in range(max_expl_obj_ids.shape[1]):
-            img_saliencies += attns[range(attns.shape[0]), obj_id, :, :].detach().cpu()
-
-        # upscale img_saliencies to orig img shape
-        # imgs = utils.resize_tensor(imgs.cpu(), 3, 300, 300).squeeze(dim=1).cpu()
-        img_saliencies = utils.resize_tensor(img_saliencies.cpu(), imgs.shape[2], imgs.shape[2]).squeeze(dim=1).cpu()
-
-        for img_id, (img, gt_table, pred_table, table_expl, img_expl, true_label, pred_label, imgid) in enumerate(zip(
-                imgs, target_set, output_attr, table_saliencies,
-                img_saliencies, img_class_ids, preds,
-                img_ids
-        )):
-            # unnormalize images
-            img = img / 2. + 0.5  # Rescale to [0, 1].
-
-            # fig = utils.create_expl_images(np.array(transforms.ToPILImage()(img.cpu()).convert("RGB")),
-            #                 gt_table.detach().cpu().numpy(),
-            #                  pred_table.detach().cpu().numpy(),
-            #                  table_expl.detach().cpu().numpy(),
-            #                  img_expl.detach().cpu().numpy(),
-            #                  true_label, pred_label,
-            #                  attr_labels)
-            fig = utils.create_expl_images(np.array(transforms.ToPILImage()(img.cpu()).convert("RGB")),
-                                           pred_table.detach().cpu().numpy(),
-                                           table_expl.detach().cpu().numpy(),
-                                           img_expl.detach().cpu().numpy(),
-                                           true_label, pred_label, attr_labels)
-            writer.add_figure(f"{tagname}_{img_id}", fig, epoch)
-            if img_id > 10:
-                break
-
-        break
 
 
 def get_confusion_from_ckpt(net, test_loader, criterion, args, datasplit, writer=None):
@@ -269,8 +154,10 @@ def run_test_final(net, loader, criterion, writer, args, datasplit):
             img_class_ids = img_class_ids.long()
 
             # forward evaluation through the network
-            # output_cls, output_attr = net(imgs)
-            output_cls = net.set_cls(target_set)
+            output_cls, output_attr = net(imgs)
+            # for training only set transformer given GT symbols
+            # output_cls = net.set_cls(target_set)
+
             # class prediction
             _, preds = torch.max(output_cls, 1)
 
@@ -323,8 +210,10 @@ def run(net, loader, optimizer, criterion, split, writer, args, train=False, plo
         img_class_ids = img_class_ids.long()
 
         # forward evaluation through the network
-        # output_cls, output_attr = net(imgs)
-        output_cls = net.set_cls(target_set)
+        output_cls, output_attr = net(imgs)
+        # for training only set transformer given GT symbols
+        # output_cls = net.set_cls(target_set)
+
         # class prediction
         _, preds = torch.max(output_cls, 1)
 
@@ -342,9 +231,7 @@ def run(net, loader, optimizer, criterion, split, writer, args, train=False, plo
 
         # Plot predictions in Tensorboard
         if plot and not(i % iters_per_epoch):
-        # if plot and i == 0:
-        #     write_expls(net, loader, f"Expl/{split}", args, epoch, writer)
-            write_expls_attn(net, loader, f"Expl/{split}", args, epoch, writer)
+            utils.write_expls(net, loader, f"Expl/{split}", epoch, writer)
 
     bal_acc = metrics.balanced_accuracy_score(labels_all, preds_all)
 
@@ -378,7 +265,7 @@ def run_lexi(net, loader, optimizer, criterion, criterion_lexi, split, writer, a
 
     # Plot initial predictions in Tensorboard
     if plot and epoch == 0:
-        write_expls_attn(net, loader, f"Expl/prior_{split}", args, 0, writer)
+        utils.write_expls(net, loader, f"Expl/prior_{split}", 0, writer)
 
     running_loss = 0
     running_ra_loss = 0
@@ -391,19 +278,11 @@ def run_lexi(net, loader, optimizer, criterion, criterion_lexi, split, writer, a
         imgs, target_set, img_class_ids, img_ids, _, table_expls = map(lambda x: x.cuda(), sample)
         img_class_ids = img_class_ids.long()
 
-        # # sanity check slot attention
-        # output = net.img2state_net(imgs)
-        # output = net.img2state_net._transform_attrs(output)
-        # # print predictions for one image, match predictions with targets
-        # matched_output, _ = utils.hungarian_matching(target_set, output.to('cuda'), verbose=0)
-        # for k in range(2):
-        #     print(f"\nGT: \n{target_set.detach().cpu().numpy()[k]}")
-        #     # print(f"\nPred: \n{np.round(matched_output.detach().cpu().numpy()[k], 0)}\n")
-        #     print(f"\nPred: \n{matched_output.detach().cpu().numpy()[k]}\n")
-        # exit()
-
         # forward evaluation through the network
         output_cls, output_attr = net(imgs)
+        # for training only set transformer given GT symbols
+        # output_cls = net.set_cls(target_set)
+
         _, preds = torch.max(output_cls, 1)
 
         # convert sorting gt target set and gt table explanations to match the order of the predicted table
@@ -415,9 +294,6 @@ def run_lexi(net, loader, optimizer, criterion, criterion_lexi, split, writer, a
         loss_lexi = criterion_lexi(net.set_cls, output_attr, img_class_ids, table_expls, epoch, batch_id=i,
                                    writer=None, writer_prefix=split)
 
-        # if epoch < 10:
-        #     l2_grads = 0
-        # else:
         l2_grads = args.l2_grads
         loss = loss_pred + l2_grads * loss_lexi
 
@@ -436,7 +312,7 @@ def run_lexi(net, loader, optimizer, criterion, criterion_lexi, split, writer, a
 
         # Plot predictions in Tensorboard
         if plot and not(i % iters_per_epoch):
-            write_expls_attn(net, loader, f"Expl/{split}", args, epoch, writer)
+            utils.write_expls(net, loader, f"Expl/{split}", epoch, writer)
 
     bal_acc = metrics.balanced_accuracy_score(labels_all, preds_all)
 
@@ -454,53 +330,6 @@ def run_lexi(net, loader, optimizer, criterion, criterion_lexi, split, writer, a
           )
 
     return running_loss / len(loader)
-
-
-class LexiLoss:
-    def __init__(self, class_weights, args):
-        self.criterion = torch.nn.MSELoss()
-        self.args = args
-
-    def norm_saliencies(self, saliencies):
-        saliencies_norm = saliencies.clone()
-
-        for i in range(saliencies.shape[0]):
-            if len(torch.nonzero(saliencies[i], as_tuple=False)) == 0:
-                saliencies_norm[i] = saliencies[i]
-            else:
-                saliencies_norm[i] = (saliencies[i] - torch.min(saliencies[i])) / \
-                                     (torch.max(saliencies[i]) - torch.min(saliencies[i]))
-
-        return saliencies_norm
-
-    def generate_intgrad_captum_table(self, net, input, labels):
-        labels = labels.to("cuda")
-        explainer = IntegratedGradients(net)
-        saliencies = explainer.attribute(input, target=labels)
-        # remove negative attributions
-        saliencies[saliencies < 0] = 0.
-        return self.norm_saliencies(saliencies)
-
-    def __call__(self, net, target_set, class_ids, masks, epoch, batch_id, writer=None, writer_prefix=""):
-
-        masks = masks.squeeze(dim=1).double()
-        saliencies = self.generate_intgrad_captum_table(net, target_set, class_ids).squeeze(dim=1)
-
-        assert len(saliencies.shape) == 3
-        assert masks.shape == saliencies.shape
-
-        loss = self.criterion(saliencies, masks)
-
-        # if writer is not None and batch_id == 0:
-        #     print("Creating figures...")
-        #
-        #     for i in range(target_set.shape[0]):
-        #         if epoch <= 1:
-        #             writer.add_image('{}_{}gt_tables'.format(writer_prefix, i), target_set[i].unsqueeze(0), epoch)
-        #             writer.add_image('{}_{}masks'.format(writer_prefix, i), masks[i].unsqueeze(0), epoch)
-        #         writer.add_image('{}_{}saliencies'.format(writer_prefix, i), saliencies[i].unsqueeze(0), epoch)
-
-        return loss
 
 
 def train(args):
@@ -543,9 +372,9 @@ def train(args):
         shuffle=False,
     )
 
-    net = model.IMG2TabCls(args, n_slots=args.n_slots, n_iters=args.n_iters_slot_att, n_attr=args.n_attr,
-                           set_transf_hidden=args.set_transf_hidden, category_ids=args.category_ids,
-                           device=args.device)
+    net = model.NeSyConceptLearner(n_classes=args.n_imgclasses, n_slots=args.n_slots, n_iters=args.n_iters_slot_att,
+                             n_attr=args.n_attr, n_set_heads=args.n_heads, set_transf_hidden=args.set_transf_hidden,
+                             category_ids=args.category_ids, device=args.device)
 
     # load pretrained state predictor
     log = torch.load("logs/slot-attention-clevr-state-3_final")
@@ -601,9 +430,9 @@ def train(args):
         rtpt.step()
 
     # load best model for final evaluation
-    net = model.IMG2TabCls(args, n_slots=args.n_slots, n_iters=args.n_iters_slot_att, n_attr=args.n_attr,
-                           set_transf_hidden=args.set_transf_hidden, category_ids=args.category_ids,
-                           device=args.device)
+    net = model.NeSyConceptLearner(n_classes=args.n_imgclasses, n_slots=args.n_slots, n_iters=args.n_iters_slot_att,
+                             n_attr=args.n_attr, n_set_heads=args.n_heads, set_transf_hidden=args.set_transf_hidden,
+                             category_ids=args.category_ids, device=args.device)
     net = net.to(args.device)
     checkpoint = torch.load(glob.glob(os.path.join(writer.log_dir, "model_*_bestvalloss*.pth"))[0])
     net.load_state_dict(checkpoint['weights'])
@@ -657,9 +486,9 @@ def test(args):
 
     criterion = nn.CrossEntropyLoss()
 
-    net = model.IMG2TabCls(args, n_slots=args.n_slots, n_iters=args.n_iters_slot_att, n_attr=args.n_attr,
-                           set_transf_hidden=args.set_transf_hidden, category_ids=args.category_ids,
-                           device=args.device)
+    net = model.NeSyConceptLearner(n_classes=args.n_imgclasses, n_slots=args.n_slots, n_iters=args.n_iters_slot_att,
+                             n_attr=args.n_attr, n_set_heads=args.n_heads, set_transf_hidden=args.set_transf_hidden,
+                             category_ids=args.category_ids, device=args.device)
     net = net.to(args.device)
 
     checkpoint = torch.load(args.fp_ckpt)
@@ -700,19 +529,11 @@ def plot(args):
         num_workers=args.num_workers,
         shuffle=False,
     )
-    val_loader = data.get_loader(
-        dataset_val,
-        batch_size=args.batch_size,
-        num_workers=args.num_workers,
-        shuffle=False,
-    )
-
-    criterion = nn.CrossEntropyLoss()
 
     # load best model for final evaluation
-    net = model.IMG2TabCls(args, n_slots=args.n_slots, n_iters=args.n_iters_slot_att, n_attr=args.n_attr,
-                           set_transf_hidden=args.set_transf_hidden, category_ids=args.category_ids,
-                           device=args.device)
+    net = model.NeSyConceptLearner(n_classes=args.n_imgclasses, n_slots=args.n_slots, n_iters=args.n_iters_slot_att,
+                             n_attr=args.n_attr, n_set_heads=args.n_heads, set_transf_hidden=args.set_transf_hidden,
+                             category_ids=args.category_ids, device=args.device)
     net = net.to(args.device)
 
     checkpoint = torch.load(args.fp_ckpt)
@@ -728,7 +549,7 @@ def plot(args):
         pass
 
     # change plotting function in utils in order to visualize explanations
-    assert args.conf_version == 'conf_3'
+    assert args.conf_version == 'CLEVR-Hans3'
     utils.save_expls_attn(net, test_loader, "test", save_path=save_dir)
 
 

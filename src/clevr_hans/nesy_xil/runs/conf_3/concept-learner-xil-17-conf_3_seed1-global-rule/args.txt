@@ -1,0 +1,28 @@
+
+name: slot-attention-clevr-state-set-transformer-rrr-4-conf_3
+mode: train
+resume: None
+seed: 1
+epochs: 50
+lr: 0.001
+l2_grads: 20.0
+batch_size: 128
+num_workers: 4
+dataset: clevr-hans-state
+no_cuda: False
+train_only: False
+eval_only: False
+multi_gpu: False
+data_dir: /workspace/datasets/Clevr_Hans/conf_3/
+fp_ckpt: None
+n_slots: 10
+n_iters_slot_att: 3
+n_attr: 18
+n_heads: 4
+set_transf_hidden: 128
+conf_version: conf_3
+device: cuda
+n_imgclasses: 3
+class_weights: tensor([0.3333, 0.3333, 0.3333])
+classes: [0 1 2]
+category_ids: [ 3  6  8 10 18]

@@ -29,28 +29,12 @@ from captum.attr._core.layer.grad_cam import LayerGradCam
 
 import data_xil as data
 import utils as utils
+import model as model
 from rrr_loss import rrr_loss_function
 
 # -----------------------------------------
 # - Define basic and data related methods -
 # -----------------------------------------
-class ResNet34Small(nn.Module):
-    def __init__(self, num_classes):
-        super(ResNet34Small, self).__init__()
-        original_model = models.resnet34(pretrained=True)
-        self.features = nn.Sequential(*list(original_model.children())[:-3])
-
-        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-        self.fc = nn.Linear(256, num_classes)
-
-    def forward(self, x):
-        x = self.features(x)
-        x = self.avgpool(x)
-        x = torch.flatten(x, 1)
-        x = self.fc(x)
-        return x
-
-
 def get_args():
     parser = argparse.ArgumentParser()
     # generic params
@@ -111,85 +95,9 @@ def get_args():
     else:
         args.device = 'cuda'
 
-    seed_everything(args.seed)
+    utils.seed_everything(args.seed)
 
     return args
-
-
-def seed_everything(seed=42):
-    random.seed(seed)
-    os.environ['PYTHONHASHSEED'] = str(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
-
-
-def write_expls(net, data_loader, tagname, args, epoch, writer):
-    def norm_saliencies(saliencies):
-        saliencies_norm = saliencies.clone()
-
-        for i in range(saliencies.shape[0]):
-            if len(torch.nonzero(saliencies[i], as_tuple=False)) == 0:
-                saliencies_norm[i] = saliencies[i]
-            else:
-                saliencies_norm[i] = (saliencies[i] - torch.min(saliencies[i])) / \
-                                     (torch.max(saliencies[i]) - torch.min(saliencies[i]))
-
-        return saliencies_norm
-
-    def generate_gradcam_captum_img(net, data, labels):
-        labels = labels.to("cuda")
-        explainer = LayerGradCam(net, net.features[-1])
-        saliencies = explainer.attribute(inputs=data, target=labels, relu_attributions=True)
-        saliencies = norm_saliencies(saliencies)
-        return saliencies
-
-    def generate_inpgrad_captum_img(net, data, labels):
-        labels = labels.to("cuda")
-        explainer = InputXGradient(net)
-        saliencies = explainer.attribute(inputs=data, target=labels)
-        # sum over rgb channels
-        saliencies = torch.sum(saliencies, dim=1)
-
-        saliencies = norm_saliencies(saliencies)
-        return saliencies
-
-    attr_labels = ['Sphere', 'Cube', 'Cylinder',
-                   'Large', 'Small',
-                   'Rubber', 'Metal',
-                   'Cyan', 'Blue', 'Yellow', 'Purple', 'Red', 'Green', 'Gray', 'Brown']
-
-    net.eval()
-    # net.train()
-    # torch.set_grad_enabled(True)
-
-    for i, sample in enumerate(data_loader):
-        # input is either a set or an image
-        imgs, target_set, img_class_ids, img_ids, _, _ = map(lambda x: x.cuda(), sample)
-        img_class_ids = img_class_ids.long()
-
-        # forward evaluation through the network
-        output_cls = net(imgs)
-        _, preds = torch.max(output_cls, 1)
-
-        # get explanations of image encoder
-        img_saliencies = generate_gradcam_captum_img(net, imgs, preds).squeeze(dim=1)
-        img_saliencies = utils.resize_tensor(img_saliencies.cpu(), 224, 224).squeeze(dim=1).cpu()
-        # img_saliencies = generate_inpgrad_captum_img(net, imgs, preds).squeeze(dim=1)
-
-        for img_id, (img, img_expl, true_label, pred_label, imgid) in enumerate(zip(
-                imgs, img_saliencies, img_class_ids, preds, img_ids)):
-            # unnormalize images
-            img = img/2. + 0.5  # Rescale to [0, 1].
-            fig = utils.create_expl_images(np.array(transforms.ToPILImage()(img.cpu()).convert("RGB")),
-                             img_expl.detach().cpu().numpy(),
-                             true_label, pred_label)
-            writer.add_figure(f"{tagname}_{img_id}", fig, epoch)
-            if img_id > 20:
-                break
-
-        break
 
 
 def get_confusion_from_ckpt(net, test_loader, criterion, args, datasplit, writer=None):
@@ -304,9 +212,7 @@ def run(net, loader, optimizer, criterion, split, writer, args, train=False, plo
 
         # Plot predictions in Tensorboard
         if plot and not(i % iters_per_epoch):
-        # if plot and i == 0:
-            write_expls(net, loader, f"Expl/{split}", args, epoch, writer)
-            # write_expls_attn(net, loader, f"Expl/{split}", args, epoch, writer)
+            utils.write_expls(net, loader, f"Expl/{split}", args, epoch, writer)
 
     bal_acc = metrics.balanced_accuracy_score(labels_all, preds_all)
 
@@ -382,7 +288,7 @@ def run_lexi(net, loader, optimizer, criterion, criterion_lexi, split, writer, a
 
         # Plot predictions in Tensorboard
         if plot and not(i % iters_per_epoch):
-            write_expls(net, loader, f"Expl/{split}", args, epoch, writer)
+            utils.write_expls(net, loader, f"Expl/{split}", args, epoch, writer)
 
     bal_acc = metrics.balanced_accuracy_score(labels_all, preds_all)
 
@@ -450,8 +356,6 @@ class LexiLoss:
         assert masks.shape == saliencies.shape
 
         # captum gradcam is size of conv layer --> must resize gt mask
-        # masks_downscaled = self.resize_tensor(masks.cpu(), saliencies.shape[-2], saliencies.shape[-1]).to("cuda").squeeze(dim=1)
-        # loss = loss + self.criterion(saliencies, masks_downscaled)
         loss = self.criterion(saliencies, masks)
 
         if writer is not None and batch_id == 0:
@@ -517,7 +421,7 @@ def train(args):
         shuffle=False,
     )
 
-    net = ResNet34Small(num_classes=args.n_imgclasses)
+    net = model.ResNet34Small(num_classes=args.n_imgclasses)
     net = net.to(args.device)
 
     # only optimize the set transformer classifier for now, i.e. freeze the state predictor
@@ -554,7 +458,7 @@ def train(args):
             cur_best_val_loss = val_loss
 
     # load best model for final evaluation
-    net = ResNet34Small(num_classes=args.n_imgclasses)
+    net = model.ResNet34Small(num_classes=args.n_imgclasses)
     net = net.to(args.device)
     checkpoint = torch.load(glob.glob(os.path.join(writer.log_dir, "model_epoch*_bestvalloss*.pth"))[0])
     # load best model for final evaluation
@@ -611,7 +515,7 @@ def test(args):
     criterion_lexi = LexiLoss(alpha=args.l2_grads, class_weights=args.class_weights.float().to("cuda"), args=args)
 
     # load best model for final evaluation
-    net = ResNet34Small(num_classes=args.n_imgclasses)
+    net = model.ResNet34Small(num_classes=args.n_imgclasses)
     net = net.to(args.device)
     checkpoint = torch.load(args.fp_ckpt)
     # load best model for final evaluation
@@ -660,7 +564,7 @@ def plot(args):
     criterion = nn.CrossEntropyLoss()
 
     # load best model for final evaluation
-    net = ResNet34Small(num_classes=args.n_imgclasses)
+    net = model.ResNet34Small(num_classes=args.n_imgclasses)
     net = net.to(args.device)
     checkpoint = torch.load(args.fp_ckpt)
     # load best model for final evaluation

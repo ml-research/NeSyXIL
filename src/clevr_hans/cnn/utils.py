@@ -24,6 +24,15 @@ np.random.seed(1)
 torch.manual_seed(1)
 
 
+def seed_everything(seed=42):
+    random.seed(seed)
+    os.environ['PYTHONHASHSEED'] = str(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
+
 def save_expl_images(net, data_loader, tagname, save_path):
 
     def norm_saliencies(saliencies):
@@ -92,6 +101,68 @@ def save_expl_images(net, data_loader, tagname, save_path):
                              true_label, pred_label)
             plt.savefig(f"{save_path}{tagname}_{imgid}.png")
             plt.close(fig)
+
+        break
+
+
+def write_expls(net, data_loader, tagname, epoch, writer):
+    def norm_saliencies(saliencies):
+        saliencies_norm = saliencies.clone()
+
+        for i in range(saliencies.shape[0]):
+            saliencies_norm[i] = (saliencies[i] - torch.min(saliencies[i])) / \
+                                 (torch.max(saliencies[i]) - torch.min(saliencies[i]))
+
+        return saliencies_norm
+
+    def generate_gradcam_captum_img(net, data, labels):
+        labels = labels.to("cuda")
+        explainer = LayerGradCam(net, net.features[-1])
+        saliencies = explainer.attribute(inputs=data, target=labels, relu_attributions=True)
+        saliencies = norm_saliencies(saliencies)
+        return saliencies
+
+    def generate_inpgrad_captum_img(net, data, labels):
+        labels = labels.to("cuda")
+        explainer = InputXGradient(net)
+        saliencies = explainer.attribute(inputs=data, target=labels)
+        # sum over rgb channels
+        saliencies = torch.sum(saliencies, dim=1)
+
+        saliencies = norm_saliencies(saliencies)
+        return saliencies
+
+    attr_labels = ['Sphere', 'Cube', 'Cylinder',
+                   'Large', 'Small',
+                   'Rubber', 'Metal',
+                   'Cyan', 'Blue', 'Yellow', 'Purple', 'Red', 'Green', 'Gray', 'Brown']
+
+    net.eval()
+
+    for i, sample in enumerate(data_loader):
+        # input is either a set or an image
+        imgs, _, img_class_ids, img_ids, _, _ = map(lambda x: x.cuda(), sample)
+        img_class_ids = img_class_ids.long()
+
+        # forward evaluation through the network
+        output_cls = net(imgs)
+        _, preds = torch.max(output_cls, 1)
+
+        # get explanations of image encoder
+        img_saliencies = generate_gradcam_captum_img(net, imgs, preds).squeeze(dim=1)
+        img_saliencies = utils.resize_tensor(img_saliencies.cpu(), 224, 224).squeeze(dim=1).cpu()
+        # img_saliencies = generate_inpgrad_captum_img(net, imgs, preds).squeeze(dim=1)
+
+        for img_id, (img, img_expl, true_label, pred_label, imgid) in enumerate(zip(
+                imgs, img_saliencies, img_class_ids, preds, img_ids)):
+            # unnormalize images
+            img = img/2. + 0.5  # Rescale to [0, 1].
+            fig = utils.create_expl_images(np.array(transforms.ToPILImage()(img.cpu()).convert("RGB")),
+                             img_expl.detach().cpu().numpy(),
+                             true_label, pred_label)
+            writer.add_figure(f"{tagname}_{img_id}", fig, epoch)
+            if img_id > 10:
+                break
 
         break
 

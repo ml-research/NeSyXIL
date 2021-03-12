@@ -130,3 +130,5 @@ dmypy.json
 
 # DS_Store
 *.DS_Store
+
+src/clevr_hans/nesy_xil/NeSyConceptLearner

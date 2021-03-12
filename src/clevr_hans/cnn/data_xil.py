@@ -41,7 +41,7 @@ CLASSES = {
 
 
 class CLEVR_HANS_EXPL(torch.utils.data.Dataset):
-    def __init__(self, base_path, split, lexi=False, conf_vers='conf_2'):
+    def __init__(self, base_path, split, lexi=False, conf_vers='CLEVR-Hans3'):
         assert split in {
             "train",
             "val",
@@ -72,18 +72,12 @@ class CLEVR_HANS_EXPL(torch.utils.data.Dataset):
         self.category_dict = CLASSES
 
         # get ids of category ranges, i.e. shape has three categories from ids 0 to 2
-        # self.category_ids should be e.g. [0, 3, 5, 8, 15]
-        # self.category_ids = np.cumsum([len(CLASSES[key]) for key in CLASSES.keys()])
-        # self.category_ids = np.insert(self.category_ids, 0, 0)
         self.category_ids = np.array([3, 6, 8, 10, 18])
 
     def convert_coords(self, obj, scene_directions):
         # coords = position
         # Originally the x, y, z positions are in [-3, 3].
         # We re-normalize them to [0, 1].
-        # coords = (obj["3d_coords"] + 3.) / 6.
-        # from slot attention
-        # coords = [(p +3.)/ 6. for p in position]
         # convert the 3d coords based on camera position
         # conversion from ns-vqa paper, normalization for slot attention
         position = [np.dot(obj['3d_coords'], scene_directions['right']),
@@ -156,7 +150,7 @@ class CLEVR_HANS_EXPL(torch.utils.data.Dataset):
         class_id = scene['class_id']
 
         mask = 0
-        if self.conf_vers == 'conf_3':
+        if self.conf_vers == 'CLEVR-Hans3':
             for obj in scene['objects']:
                 if class_id == 0:
                     if (obj['shape'] == 'cube' and obj['size'] == 'large') or \
@@ -173,7 +167,7 @@ class CLEVR_HANS_EXPL(torch.utils.data.Dataset):
                             (obj['shape'] == 'sphere' and obj['size'] == 'small' and obj['color'] == 'yellow'):
                         rle = obj['mask']
                         mask += coco_mask.decode(rle)
-        elif self.conf_vers == 'conf_7':
+        elif self.conf_vers == 'CLEVR-Hans7':
             for obj in scene['objects']:
                 if class_id == 0:
                     if (obj['shape'] == 'cube' and obj['size'] == 'large') or \
@@ -223,7 +217,7 @@ class CLEVR_HANS_EXPL(torch.utils.data.Dataset):
 
         mask = torch.zeros(objects.shape)
 
-        if self.conf_vers == 'conf_3':
+        if self.conf_vers == 'CLEVR-Hans3':
             for i, obj in enumerate(objects):
                 if class_id == 0:
                     # if cube and large
@@ -250,7 +244,7 @@ class CLEVR_HANS_EXPL(torch.utils.data.Dataset):
                           and (obj[10:] == torch.tensor([0, 0, 1, 0, 0, 0, 0, 0])).all()).all():
                         mask[i, 3:8] = torch.tensor([1, 0, 0, 0, 1])
                         mask[i, 10:] = torch.tensor([0, 0, 1, 0, 0, 0, 0, 0])
-        elif self.conf_vers == 'conf_7':
+        elif self.conf_vers == 'CLEVR-Hans7':
             for i, obj in enumerate(objects):
                 if class_id == 0:
                     # if cube and large
@@ -374,12 +368,6 @@ class CLEVR_HANS_EXPL(torch.utils.data.Dataset):
 
         # remove objects presence indicator from gt table
         objects = objects[:, 1:]
-
-        # used for testing
-        # # randomly change the order of the objects in table
-        # perm_ids = torch.randperm(objects.shape[0])
-        # objects = objects[perm_ids, :]
-        # table_expl = table_expl[perm_ids, :]
 
         return image, objects, img_class_id, image_id, img_expl, table_expl
 

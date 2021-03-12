@@ -6,6 +6,9 @@ scipy
 statsmodels
 scikit-learn>=0.20.0
 tensorboard_logger
+tensorboardX
 tqdm
 torchsummary
 seaborn
+rtpt
+colour
