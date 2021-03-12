@@ -4,7 +4,7 @@
 DEVICE=$1
 NUM=$2
 DATA=$3
-MODEL="concept-learner-xil-$NUM"
+MODEL="concept-learner-xil-global-rule-$NUM"
 DATASET=clevr-hans-state
 
 #-------------------------------------------------------------------------------#

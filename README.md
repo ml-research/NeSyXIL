@@ -33,9 +33,28 @@ Learner for their work. In order to reproduce our experiments please clone this 
 
 2. ```git clone https://github.com/ml-research/NeSyConceptLearner.git```
 
+### Docker
+
+We have attached a Dockerfile to make reproduction easier. We further recommend to build your own docker-compose file
+based on the DockerFile. To run without a docker-compose file:
+
+1. ```cd src/docker/```
+
+2. ```docker build -t nesy-xil -f Dockerfile .```
+
+3. ```docker run -it -v /pathto/NeSyXIL:/workspace/repositories/NeSyXIL -v /pathto/CLEVR-Hans3:/workspace/datasets/CLEVR-Hans3 --name nesy-xil --entrypoint='/bin/bash' --runtime nvidia nesy-xil```
+
 ### NeSy XIL experiments
 
+We have included the trained NeSy Concept Learner files for seeds 0 (or 1 for the global rule). To reproduce the NeSy 
+XIL results please run the desired script e.g. as
 
+```cd src/clevr_hans/nesy_xil/```
+
+```./scripts/clevr-hans-concept-learner-xil_global.sh 0 100 /workspace/datasets/CLEVR-Hans3/```
+
+For training with the RRRLoss on CLEVR-Hans3 with GPU 0 and run number 100. This corresponds to the setting of our 
+experiments on the global correction rule.
 
 ### CNN experiments
 
@@ -52,19 +71,13 @@ For training with the HINTLoss on CLEVR-Hans3 with GPU 0 and run number 0.
 
 For running the ColorMNIST experiment with the provided dockerfile:
 
-1. ```cd src/docker/```
+1. ```cd src/color_mnist/data/```
 
-2. ```docker build -t nesy-xil -f Dockerfile .```
+2. ```python generate_color_mnist.py```
 
-3. ```docker run -it -v /home/ml-stammer/Documents/repositories/NeSyXIL:/workspace/repositories/NeSyXIL -v /home/ml-stammer/Documents/datasets/CLEVR-Hans3:/workspace/datasets/CLEVR-Hans3 --name nesy-xil --entrypoint='/bin/bash' --user $(id -u):$(id -g) --runtime nvidia nesy-xil```
+3. ```cd ..```
 
-4. ```cd src/color_mnist/data/```
-
-5. ```python generate_color_mnist.py```
-
-6. ```cd ..```
-
-7. ```./scripts/color_mnist_train.sh 0``` for running on gpu 0
+4. ```./scripts/color_mnist_train.sh 0``` for running the default experiment on GPU 0.
 
 ## Citation
 If you find this code useful in your research, please consider citing:
