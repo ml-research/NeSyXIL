@@ -8,4 +8,4 @@ DEVICE=$1
 
 #-------------------------------------------------------------------------------#
 # Train on ColorMNIST
-CUDA_VISIBLE_DEVICES=$DEVICE python train_default.py --mode train
+CUDA_VISIBLE_DEVICES=$DEVICE python train.py --mode train

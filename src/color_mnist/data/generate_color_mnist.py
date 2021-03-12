@@ -3,10 +3,7 @@ import torch
 import numpy as np
 import torchvision.transforms as transforms
 import tqdm
-from torch.autograd import Variable
-import argparse
 import os
-import matplotlib.pyplot as plt
 from colour import Color
 
 data_path = './data/'
