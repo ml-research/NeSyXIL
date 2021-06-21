@@ -2,7 +2,7 @@
 
 This is the official repository of the article: [Right for the Right Concept: Revising Neuro-Symbolic Concepts by 
 Interacting with their Explanations](https://arxiv.org/pdf/2011.12854.pdf) by Wolfgang Stammer, Patrick Schramowski, 
-Kristian Kersting, to be published at CVPR 2021.
+Kristian Kersting, published at CVPR 2021.
 
 This repository contains all source code required to reproduce the experiments of the paper including the ColorMNIST 
 experiments and running the CNN model. 
