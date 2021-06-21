@@ -16,7 +16,7 @@ Included is a docker file as well as a modified version of captum ([official rep
 modified by a single line such that the gradients of the explanations are kept. Simply running the docker file will 
 automatically install the captum_xil version. (ref. line 105 in ```NeSyXIL/src/docker/captum_xil/captum/attr/_utils/gradient.py```) 
 
-## How to Run (in quick repititions move one leg in front of the other):
+## How to Run:
 
 ### CLEVR-Hans
 
@@ -84,9 +84,12 @@ For running the ColorMNIST experiment with the provided dockerfile:
 ## Citation
 If you find this code useful in your research, please consider citing:
 
-> @article{stammer2020right,
-  title={Right for the Right Concept: Revising Neuro-Symbolic Concepts by Interacting with their Explanations},
-  author={Stammer, Wolfgang and Schramowski, Patrick and Kersting, Kristian},
-  journal={arXiv preprint arXiv:2011.12854},
-  year={2020}
+> @InProceedings{Stammer_2021_CVPR,
+    author    = {Stammer, Wolfgang and Schramowski, Patrick and Kersting, Kristian},
+    title     = {Right for the Right Concept: Revising Neuro-Symbolic Concepts by Interacting With Their Explanations},
+    booktitle = {Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)},
+    month     = {June},
+    year      = {2021},
+    pages     = {3619-3629}
+}
 }
